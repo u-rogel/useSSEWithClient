@@ -2,14 +2,21 @@
   "name": "useSSEWithClient",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "exports": {
+    "types": "./build/use-sse.d.ts",
+    "import": "./build/use-sse.js"
+  },
+  "files": ["./build"],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -w --project ./tsconfig.json"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "typescript": "^5.2.2"
   }
 }

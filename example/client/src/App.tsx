@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
-import './App.css'
+import './App.css' 
+import useSSE from 'use-sse'
 
 type SSEClient = {
   status: 'none' | 'connecting' | 'connected' | 'disconnecting'
@@ -9,6 +10,7 @@ type SSEClient = {
 }
 
 function App() {
+  useSSE();
   const [client, setClient] = useState<SSEClient>({
      status: 'none',
      sseChannel: null
