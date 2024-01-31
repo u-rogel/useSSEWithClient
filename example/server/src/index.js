@@ -17,21 +17,34 @@ app.get('/sse-register', (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders(); // flush the headers to establish SSE with client
 
-  let counter = 0;
-  let interValID = setInterval(() => {
-      counter++;
-      if (counter >= 10) {
-          clearInterval(interValID);
-          res.end(); // terminates SSE session
+  let counter1 = 0;
+  let interValID1 = setInterval(() => {
+      counter1++;
+      if (counter1 >= 10) {
+          clearInterval(interValID1);
+          res.end();
           return;
       }
-      res.write(`data: ${JSON.stringify({num: counter})}\n\n`); // res.write() instead of res.send()
-  }, 1000);
+      res.write('event: slow\n')
+      res.write(`data: ${JSON.stringify({num: counter1})}\n\n`);
+  }, 3000);
 
-  // If client closes connection, stop sending events
+  // let counter2 = 0;
+  // let interValID2 = setInterval(() => {
+  //   counter2++;
+  //   if (counter2 >= 30) {
+  //       clearInterval(interValID2);
+  //       res.end();
+  //       return;
+  //   }
+  //   res.write('event: fast\n')
+  //   res.write(`data: ${JSON.stringify({num: counter2})}\n\n`);
+  // }, 1000);
+
   res.on('close', () => {
       console.log('client dropped me');
-      clearInterval(interValID);
+      clearInterval(interValID1);
+      // clearInterval(interValID2);
       res.end();
   });
 })
