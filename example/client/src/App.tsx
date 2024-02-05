@@ -1,41 +1,50 @@
 import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
-import './App.css' 
-import useSSE from 'use-sse'
-
-type SSEClient = {
-  status: 'none' | 'connecting' | 'connected' | 'disconnecting'
-  sseChannel: null | EventSource
-}
+import './App.css'
 
 function App() {
-  useSSE();
-  const [client, setClient] = useState<SSEClient>({
-     status: 'none',
-     sseChannel: null
-  })
-
+  const [users, setUsers] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
   useEffect(() => {
-    fetch('http://localhost:3000')
-      .then((res) => res.text())
-      .then((res) => {
-        console.log({ res });
-        
+    fetch('http://localhost:3001/rooms')
+      .then((res) => res.json())
+      .then((rooms) => {
+        console.log({ rooms });
+        setRooms(rooms)
       })
   }, [])
 
   useEffect(() => {
-    if (client.status === 'connecting') {
-      const evtSource = new EventSource("http://localhost:3000/sse-register");
-      setClient({ status: 'connected', sseChannel: evtSource });
-      evtSource.onmessage = (msg) => {
-        console.log({ msg});
-      }
-    } else if (client.status === 'disconnecting' && client.sseChannel != null) {
-      client.sseChannel.close()
-    }
-  }, [client.status])
+    fetch('http://localhost:3001/users')
+      .then((res) => res.json())
+      .then((users) => {
+        console.log({ users });
+        setUsers(users)
+      })
+  }, [])
+
+  useEffect(() => {
+    fetch('http://localhost:3001/messages')
+      .then((res) => res.json())
+      .then((messages) => {
+        console.log({ messages });
+        setMessages(messages)
+      })
+  }, [])
+
+  // useEffect(() => {
+  //   fetch('http://localhost:3001/users', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ username: 'new user' })
+  //   })
+  //     .then((res) => res.json())
+  //     .then((messages) => {
+  //       console.log({ messages });
+  //     })
+  // }, [])
 
   return (
     <>
@@ -48,26 +57,39 @@ function App() {
         </a>
       </div>
       <h1>Vite + React</h1>
-      <div className="card">
-        {
-          client.status !== 'connected'
-            ? (
-              <button
-              onClick={() => {
-                setClient({ ...client, status: 'connecting'})
-              }}
-              >
-                connect
-              </button>
-            )
-            : (
-              <button
-              onClick={() => {
-                setClient({ ...client, status: 'disconnecting'})
-              }}
-              >disconnect</button>
-            )
-        }
+      <div style={{ width: '400px' }}>
+        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between' }}>
+          <div>
+            <h3>Users</h3>
+            <div>
+              {users.map((user) => (
+                <div key={user.id}>
+                  {user.username}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3>Rooms</h3>
+            <div>
+              {rooms.map((room) => (
+                <div key={room.id}>
+                  {room.name}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3>Messages</h3>
+            <div>
+              {messages.map((message) => (
+                <div key={message.id}>
+                  {message.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </>
   )

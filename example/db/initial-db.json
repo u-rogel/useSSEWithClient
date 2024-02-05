@@ -1,0 +1,25 @@
+{
+  "rooms": [
+    {
+      "id": 1,
+      "name": "default"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "username": "default",
+      "roomIds": [
+        1
+      ]
+    }
+  ],
+  "messages": [
+    {
+      "id": 1,
+      "message": "chat start",
+      "userId": 1,
+      "roomId": 1
+    }
+  ]
+}
