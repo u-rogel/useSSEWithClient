@@ -32,6 +32,7 @@ module.exports = {
   rules: {
     'linebreak-style': 0,
     'no-return-await': 'off',
+    '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/return-await': 'off',
     '@typescript-eslint/promise-function-async': 'off',
     '@typescript-eslint/no-floating-promises': 'off',
