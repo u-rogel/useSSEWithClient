@@ -63,18 +63,24 @@ app.get('/rooms', async (req, res) => {
 
 app.post('/rooms', async (req: Request<unknown, unknown, Pick<Room, 'name'>>, res) => {
   const { name } = req.body;
-  const newRoom = await fetch(
-    'http://localhost:3000/rooms',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+  const rooms = await fetch('http://localhost:3000/rooms').then<Room[]>((r) => r.json());
+  const foundRoom = rooms.find((room) => room.name === name);
+  if (foundRoom != null) {
+    res.status(200).json(foundRoom).send();
+  } else {
+    const newRoom = await fetch(
+      'http://localhost:3000/rooms',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
       },
-      body: JSON.stringify({ name }),
-    },
-  ).then<Room>((r) => r.json());
+    ).then<Room>((r) => r.json());
 
-  res.status(200).json(newRoom).send();
+    res.status(200).json(newRoom).send();
+  }
 });
 
 app.get('/users', async (req, res) => {
@@ -85,18 +91,24 @@ app.get('/users', async (req, res) => {
 
 app.post('/users', async (req: Request<unknown, unknown, Pick<User, 'username'>>, res) => {
   const { username } = req.body;
-  const newUser = await fetch(
-    'http://localhost:3000/users',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+  const users = await fetch('http://localhost:3000/users').then<User[]>((r) => r.json());
+  const foundUser = users.find((user) => user.username === username);
+  if (foundUser != null) {
+    res.status(200).json(foundUser).send();
+  } else {
+    const newUser = await fetch(
+      'http://localhost:3000/users',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, roomIds: [1] }),
       },
-      body: JSON.stringify({ username, roomIds: [1] }),
-    },
-  ).then<User>((r) => r.json());
+    ).then<User>((r) => r.json());
 
-  res.status(200).json(newUser).send();
+    res.status(200).json(newUser).send();
+  }
 });
 
 app.get('/messages', async (req, res) => {
