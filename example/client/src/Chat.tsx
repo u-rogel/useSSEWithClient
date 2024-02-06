@@ -1,6 +1,7 @@
 import React from 'react'
 import Messages from './Messages'
 import { User } from './types'
+import Users from './Users'
 
 interface ChatProps {
   userId: User['id']
@@ -16,9 +17,7 @@ const Chat: React.FC<ChatProps> = ({ userId }) => {
           <h4>Rooms</h4>
         </div>
         <Messages userId={userId} />
-        <div style={{ border: '1px solid black', flex: 1, minHeight: '200px' }}>
-          <h4>Users</h4>
-        </div>
+        <Users userId={userId} />
       </div>
     </div>
   )
