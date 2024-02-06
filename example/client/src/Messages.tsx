@@ -9,7 +9,7 @@ interface MessagesProps {
 
 const Messages: React.FC<MessagesProps> = ({ userId }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [message, setMessage] = useState('')
+  const [newMessage, setNewMessage] = useState('')
   useEffect(() => {
     setInterval(() => {
       fetch('http://localhost:3001/messages')
@@ -41,8 +41,8 @@ const Messages: React.FC<MessagesProps> = ({ userId }) => {
       <div>
         <input
           type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
         />
         <button
           onClick={() => {
@@ -53,13 +53,13 @@ const Messages: React.FC<MessagesProps> = ({ userId }) => {
                 headers: {
                   'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ userId, message, roomId: 1 })
+                body: JSON.stringify({ userId, message: newMessage, roomId: 1 })
               }
             )
               .then<{ success: boolean }>((res) => res.json())
               .then((res) => {
                 if (res.success) {
-                  setMessage('')
+                  setNewMessage('')
                 }
               })
           }}

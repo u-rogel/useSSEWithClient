@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { User } from './types'
 
-interface UsersProps {
-  userId: User['id']
-}
-
-const Users: React.FC<UsersProps> = ({ userId }) => {
+const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([])
   useEffect(() => {
     setInterval(() => {

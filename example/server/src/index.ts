@@ -49,7 +49,7 @@ app.post('/rooms', async (req: Request<unknown, unknown, Pick<Room, 'name'>>, re
   const rooms = await fetch('http://localhost:3000/rooms').then<Room[]>((r) => r.json());
   const foundRoom = rooms.find((room) => room.name === name);
   if (foundRoom != null) {
-    res.status(200).json(foundRoom);
+    res.status(200).json({ success: false });
   } else {
     const newRoom = await fetch(
       'http://localhost:3000/rooms',
@@ -92,7 +92,7 @@ app.post('/users', async (req: Request<unknown, unknown, Pick<Partial<User>, 'us
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, roomIds: [1] }),
+        body: JSON.stringify({ username }),
       },
     ).then<User>((r) => r.json());
 
