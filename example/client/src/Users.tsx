@@ -1,17 +1,27 @@
 import React, { useEffect, useState } from 'react'
-import { User } from './types'
+import { Room, User } from './types'
 
-const Users: React.FC = () => {
+interface UsersProps {
+  roomId: Room['id']
+}
+
+const Users: React.FC<UsersProps> = ({ roomId }) => {
   const [users, setUsers] = useState<User[]>([])
   useEffect(() => {
-    setInterval(() => {
-      fetch('http://localhost:3001/users')
+    console.log({ roomId });
+
+    const intervalId = setInterval(() => {
+      fetch(`http://localhost:3001/users?roomId=${roomId}`)
         .then<User[]>((res) => res.json())
         .then((res) => {
           setUsers(res)
         })
     }, 3000)
-  }, [])
+    return () => {
+      setUsers([])
+      clearInterval(intervalId)
+    }
+  }, [roomId])
   return (
     <div style={{ border: '1px solid black', flex: 1, minHeight: '200px' }}>
       <h4>Users</h4>

@@ -58,7 +58,7 @@ app.post('/rooms', async (req: Request<unknown, unknown, Pick<Room, 'name'>>, re
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, userIds: [] }),
       },
     ).then<Room>((r) => r.json());
 
@@ -66,10 +66,55 @@ app.post('/rooms', async (req: Request<unknown, unknown, Pick<Room, 'name'>>, re
   }
 });
 
-app.get('/users', async (req, res) => {
-  const users = await fetch('http://localhost:3000/users').then<User[]>((r) => r.json());
+app.patch('/rooms/join', async (req: Request<unknown, unknown, { id: Room['id'], userId: User['id'] }>, res) => {
+  const { id, userId } = req.body;
+  const draftRoom = await fetch(`http://localhost:3000/rooms/${id}`).then<Room>((r) => r.json());
+  console.log({ draftRoom, userId });
 
-  res.status(200).json(users);
+  const room = await fetch(
+    `http://localhost:3000/rooms/${id}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userIds: [...draftRoom.userIds, userId] }),
+    },
+  ).then<Room>((r) => r.json());
+  console.log({ room });
+  res.status(200).json({ success: true });
+});
+
+app.patch('/rooms/leave', async (req: Request<unknown, unknown, { id: Room['id'], userId: User['id'] }>, res) => {
+  const { id, userId } = req.body;
+  const draftRoom = await fetch(`http://localhost:3000/rooms/${id}`).then<Room>((r) => r.json());
+  console.log({ draftRoom, userId });
+  const userIdxInRoom = draftRoom.userIds.findIndex((usrId) => usrId === userId);
+  const nextUserIds = [...draftRoom.userIds.slice(0, userIdxInRoom), ...draftRoom.userIds.slice(userIdxInRoom + 1)];
+
+  const room = await fetch(
+    `http://localhost:3000/rooms/${id}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userIds: nextUserIds }),
+    },
+  ).then<Room>((r) => r.json());
+  console.log({ room });
+  res.status(200).json({ success: true });
+});
+
+app.get('/users', async (req: Request<unknown, unknown, unknown, { roomId: number }>, res) => {
+  const { roomId } = req.query;
+  console.log({ roomId });
+
+  const room = await fetch(`http://localhost:3000/rooms/${roomId}`).then<Room>((r) => r.json());
+  const users = await fetch('http://localhost:3000/users').then<User[]>((r) => r.json());
+  console.log({ room });
+
+  res.status(200).json(users.filter((user) => room.userIds.includes(user.id)));
 });
 
 app.post('/users', async (req: Request<unknown, unknown, Pick<Partial<User>, 'username' | 'id'>>, res) => {
@@ -100,8 +145,9 @@ app.post('/users', async (req: Request<unknown, unknown, Pick<Partial<User>, 'us
   }
 });
 
-app.get('/messages', async (req, res) => {
-  const messages = await fetch('http://localhost:3000/messages').then<Message[]>((r) => r.json());
+app.get('/messages', async (req: Request<unknown, unknown, unknown, { roomId: number }>, res) => {
+  const { roomId } = req.query;
+  const messages = await fetch(`http://localhost:3000/messages?roomId=${roomId}`).then<Message[]>((r) => r.json());
   const users = await fetch('http://localhost:3000/users').then<User[]>((r) => r.json());
 
   res.status(200).json(messages.map((message) => {

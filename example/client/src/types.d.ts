@@ -1,7 +1,6 @@
 export interface User {
   id: number
   username: string
-  roomsId: number[]
 }
 
 export interface Message {
@@ -14,4 +13,5 @@ export interface Message {
 export interface Room {
   id: number
   name: string
+  userIds: number[]
 }
