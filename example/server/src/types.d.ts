@@ -15,3 +15,14 @@ export interface Room {
   name: string
   userIds: number[]
 }
+
+export type AllowedEvent = 'rooms' | 'rooms/users' | 'rooms/messages';
+type AllowedRoomsPath = 'init' | 'new';
+type AllowedRoomsUsersPath = 'init' | 'join' | 'leave';
+type AllowedRoomsMessagesPath = 'init' | 'new';
+
+export interface Sub<Event extends AllowedEvent> {
+  id?: number
+  event: Event
+  path: Event extends 'rooms' ? AllowedRoomsPath : Event extends 'rooms/users' ? AllowedRoomsUsersPath : AllowedRoomsMessagesPath
+}
