@@ -39,6 +39,29 @@ const jsonServerFetch = async <Res>(
     .then<Res>((r) => r.json());
 };
 
+app.post('/users', async (req: Request<unknown, unknown, Pick<Partial<User>, 'username' | 'id'>>, res) => {
+  const { username, id } = req.body;
+
+  let foundUser: User | null = null;
+  if (id != null) {
+    foundUser = await jsonServerFetch<User>(`users/${id}`);
+  }
+  if (username != null) {
+    foundUser = await jsonServerFetch<User[]>(`users?username=${username}`).then((r) => r[0]);
+  }
+  if (foundUser != null) {
+    res.status(200).json(foundUser);
+  } else {
+    const newUser = await jsonServerFetch<User>(
+      'users',
+      'POST',
+      { username },
+    );
+
+    res.status(200).json(newUser);
+  }
+});
+
 const getRoomUsers = async (room: Room) => {
   const users = await jsonServerFetch<User[]>('users');
   return room.userIds.map((roomUserId) => users.find((user) => user.id === roomUserId)!);
@@ -209,94 +232,76 @@ app.post('/rooms/new', async (req: Request<unknown, unknown, Pick<Room, 'name'>>
   }
 });
 
-app.patch('/rooms/join', async (req: Request<unknown, unknown, { id: Room['id'] }>, res) => {
+app.get('/rooms/users/get', async (req: Request<unknown, unknown, unknown, { roomId: string }>, res) => {
   const userId = +req.header('User-Id')!;
-  const { id } = req.body;
-  const draftRoom = await jsonServerFetch<Room>(`rooms/${id}`);
-  const editedRoom = await jsonServerFetch<Room>(
-    `rooms/${id}`,
-    'PATCH',
-    { userIds: [...draftRoom.userIds, userId] },
-  );
-
-  const roomUsers = await getRoomUsers(editedRoom);
-  publishRoomUsers({
-    sub: { event: 'rooms/users', path: 'join', id: editedRoom.id },
-    message: { type: 'EDIT', data: roomUsers },
-  });
-  res.status(200).json({ success: true });
-});
-
-app.patch('/rooms/leave', async (req: Request<unknown, unknown, { id: Room['id'] }>, res) => {
-  const userId = +req.header('User-Id')!;
-  const { id } = req.body;
-  const draftRoom = await jsonServerFetch<Room>(`rooms/${id}`);
-  const userIdxInRoom = draftRoom.userIds.findIndex((usrId) => usrId === userId);
-  const nextUserIds = [...draftRoom.userIds.slice(0, userIdxInRoom), ...draftRoom.userIds.slice(userIdxInRoom + 1)];
-  dropSub({ userId, sub: { event: 'rooms/users', path: 'init', id } });
-  dropSub({ userId, sub: { event: 'rooms/users', path: 'join', id } });
-  dropSub({ userId, sub: { event: 'rooms/users', path: 'leave', id } });
-  dropSub({ userId, sub: { event: 'rooms/messages', path: 'new', id } });
-  dropSub({ userId, sub: { event: 'rooms/messages', path: 'init', id } });
-
-  const { userIds, ...editedRoom } = await jsonServerFetch<Room>(
-    `rooms/${id}`,
-    'PATCH',
-    { userIds: nextUserIds },
-  );
-
-  const roomUsers = await getRoomUsers({ userIds, ...editedRoom });
-  publishRoomUsers({
-    sub: { event: 'rooms/users', path: 'leave', id: editedRoom.id },
-    message: { type: 'EDIT', data: roomUsers },
-  });
-  res.status(200).json({ success: true });
-});
-
-app.get('/rooms/users/get', async (req: Request<unknown, unknown, unknown, { roomId: Room['id'] }>, res) => {
-  const userId = +req.header('User-Id')!;
-  const { roomId } = req.query;
-
+  const { roomId: roomIdStr } = req.query;
+  const roomId = +roomIdStr;
   const room = await jsonServerFetch<Room>(`rooms/${roomId}`);
 
-  addSub({ userId, sub: { event: 'rooms/users', path: 'init', id: room.id } });
-  addSub({ userId, sub: { event: 'rooms/users', path: 'join', id: room.id } });
-  addSub({ userId, sub: { event: 'rooms/users', path: 'leave', id: room.id } });
+  addSub({ userId, sub: { event: 'rooms/users', path: 'init', id: roomId } });
+  addSub({ userId, sub: { event: 'rooms/users', path: 'join', id: roomId } });
+  addSub({ userId, sub: { event: 'rooms/users', path: 'leave', id: roomId } });
   const users = await getRoomUsers(room);
   publishRoomUsers({
-    sub: { event: 'rooms/users', path: 'init', id: room.id },
+    userId,
+    sub: { event: 'rooms/users', path: 'init', id: roomId },
     message: {
-      type: 'EDIT',
+      type: 'INIT',
       data: users,
     },
   });
   res.status(200).json({ success: true });
 });
 
-app.post('/users', async (req: Request<unknown, unknown, Pick<Partial<User>, 'username' | 'id'>>, res) => {
-  const { username, id } = req.body;
+app.patch('/rooms/users/join', async (req: Request<unknown, unknown, { roomId: Room['id'] }>, res) => {
+  const userId = +req.header('User-Id')!;
+  const { roomId } = req.body;
+  console.log(`user: ${userId}, joins: ${roomId}`, { userId, roomId });
 
-  let foundUser: User | null = null;
-  if (id != null) {
-    foundUser = await jsonServerFetch<User>(`users/${id}`);
-  }
-  if (username != null) {
-    foundUser = await jsonServerFetch<User[]>(`users?username=${username}`).then((r) => r[0]);
-  }
-  if (foundUser != null) {
-    res.status(200).json(foundUser);
-  } else {
-    const newUser = await jsonServerFetch<User>(
-      'users',
-      'POST',
-      { username },
-    );
+  const draftRoom = await jsonServerFetch<Room>(`rooms/${roomId}`);
+  const editedRoom = await jsonServerFetch<Room>(
+    `rooms/${roomId}`,
+    'PATCH',
+    { userIds: [...draftRoom.userIds, userId] },
+  );
 
-    res.status(200).json(newUser);
-  }
+  const roomUsers = await getRoomUsers(editedRoom);
+  publishRoomUsers({
+    sub: { event: 'rooms/users', path: 'join', id: roomId },
+    message: { type: 'EDIT', data: roomUsers },
+  });
+  res.status(200).json({ success: true });
 });
 
-app.get('/rooms/messages', async (req: Request<unknown, unknown, unknown, { roomId: string }>, res) => {
+app.patch('/rooms/users/leave', async (req: Request<unknown, unknown, { roomId: Room['id'] }>, res) => {
+  const userId = +req.header('User-Id')!;
+  const { roomId } = req.body;
+  console.log(`user: ${userId}, leaves: ${roomId}`, { userId, roomId });
+
+  const draftRoom = await jsonServerFetch<Room>(`rooms/${roomId}`);
+  const userIdxInRoom = draftRoom.userIds.findIndex((usrId) => usrId === userId);
+  const nextUserIds = [...draftRoom.userIds.slice(0, userIdxInRoom), ...draftRoom.userIds.slice(userIdxInRoom + 1)];
+  dropSub({ userId, sub: { event: 'rooms/users', path: 'init', id: roomId } });
+  dropSub({ userId, sub: { event: 'rooms/users', path: 'join', id: roomId } });
+  dropSub({ userId, sub: { event: 'rooms/users', path: 'leave', id: roomId } });
+  dropSub({ userId, sub: { event: 'rooms/messages', path: 'new', id: roomId } });
+  dropSub({ userId, sub: { event: 'rooms/messages', path: 'init', id: roomId } });
+
+  const { userIds, ...editedRoom } = await jsonServerFetch<Room>(
+    `rooms/${roomId}`,
+    'PATCH',
+    { userIds: nextUserIds },
+  );
+
+  const roomUsers = await getRoomUsers({ userIds, ...editedRoom });
+  publishRoomUsers({
+    sub: { event: 'rooms/users', path: 'leave', id: roomId },
+    message: { type: 'EDIT', data: roomUsers },
+  });
+  res.status(200).json({ success: true });
+});
+
+app.get('/rooms/messages/get', async (req: Request<unknown, unknown, unknown, { roomId: string }>, res) => {
   const userId = +req.header('User-Id')!;
   const { roomId: roomIdStr } = req.query;
   const roomId = +roomIdStr;
