@@ -6,16 +6,18 @@ import Rooms from './Rooms'
 
 interface ChatProps {
   userId: User['id']
+  sse: EventSource
 }
 
 
-const Chat: React.FC<ChatProps> = ({ userId }) => {
+const Chat: React.FC<ChatProps> = ({ userId, sse }) => {
   const [selectedRoomId, setSelectedRoomId] = useState<null | Room['id']>(null)
   return (
     <div>
       <h2>Simple Chat</h2>
       <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between' }}>
         <Rooms
+          sse={sse}
           userId={userId}
           onRoomSelect={(roomId) => { setSelectedRoomId(roomId) }}
           selectedRoomId={selectedRoomId}
@@ -24,8 +26,8 @@ const Chat: React.FC<ChatProps> = ({ userId }) => {
           selectedRoomId != null
             ? (
               <>
-                <Messages userId={userId} roomId={selectedRoomId} />
-                <Users roomId={selectedRoomId} />
+                <Messages sse={sse} roomId={selectedRoomId} />
+                <Users sse={sse} roomId={selectedRoomId} />
               </>
             )
             : (

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { User } from './types';
 
 interface LoginProps {
-  onLogin: (user: User) => void
+  onLogin: (user: User, sse: EventSource) => void
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -23,14 +23,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               {
                 method: 'POST',
                 headers: {
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ username })
               }
-            ).then((res) => res.json())
+            ).then<User>((res) => res.json())
               .then((res) => {
-                console.log({ res });
-                onLogin(res);
+                const sse = new EventSource(`http://localhost:3001/sse-register?userId=${res.id}`)
+                sse.onopen = () => {
+                  console.log('SSE Opened');
+                }
+                onLogin(res, sse);
               })
               .catch((err) => {
                 console.log({ err });

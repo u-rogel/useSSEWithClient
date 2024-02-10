@@ -1,29 +1,48 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Message, Room, User } from './types'
+import useStateRef from 'react-usestateref'
 
 type ChatMessage = Message & Pick<User, 'username'>
 
 interface MessagesProps {
-  userId: User['id']
   roomId: Room['id']
+  sse: EventSource
 }
 
-const Messages: React.FC<MessagesProps> = ({ userId, roomId }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+const Messages: React.FC<MessagesProps> = ({ roomId, sse }) => {
+  const [messages, setMessages, messagesRef] = useStateRef<ChatMessage[]>([])
   const [newMessage, setNewMessage] = useState('')
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetch(`http://localhost:3001/messages?roomId=${roomId}`)
-        .then<ChatMessage[]>((res) => res.json())
-        .then((res) => {
-          setMessages(res)
-        })
-    }, 3000)
-    return () => {
-      setMessages([])
-      clearInterval(intervalId)
+
+  const newData = useCallback((data: MessageEvent<string>) => {
+    console.log({ data });
+    const res: { type: 'INIT' | 'ADD', data: ChatMessage[] } = JSON.parse(data.data);
+    console.log({ res });
+
+    if (res.type === 'INIT') {
+      setMessages(res.data)
+    } else if (res.type === 'ADD') {
+      setMessages([...messagesRef.current, ...res.data])
     }
   }, [roomId])
+
+  useEffect(() => {
+    sse.addEventListener('rooms/messages', newData);
+    fetch(
+      `http://localhost:3001/rooms/messages/get?roomId=${roomId}`,
+      {
+        headers: {
+          'User-Id': localStorage.getItem('userId')!
+        }
+      }
+    )
+      .then((res) => res.json())
+
+    return () => {
+      setMessages([])
+      sse.removeEventListener('rooms/messages', newData)
+    }
+  }, [roomId])
+
   return (
     <div style={{ border: '1px solid black', flex: 3, minHeight: '200px' }}>
       <h4>Messages</h4>
@@ -52,13 +71,14 @@ const Messages: React.FC<MessagesProps> = ({ userId, roomId }) => {
         <button
           onClick={() => {
             fetch(
-              'http://localhost:3001/messages',
+              'http://localhost:3001/rooms/messages/new',
               {
                 method: 'POST',
                 headers: {
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  'User-Id': localStorage.getItem('userId')!
                 },
-                body: JSON.stringify({ userId, message: newMessage, roomId })
+                body: JSON.stringify({ message: newMessage, roomId })
               }
             )
               .then<{ success: boolean }>((res) => res.json())

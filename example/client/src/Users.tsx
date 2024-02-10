@@ -1,27 +1,44 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect } from 'react'
 import { Room, User } from './types'
+import useStateRef from 'react-usestateref'
 
 interface UsersProps {
   roomId: Room['id']
+  sse: EventSource
 }
 
-const Users: React.FC<UsersProps> = ({ roomId }) => {
-  const [users, setUsers] = useState<User[]>([])
-  useEffect(() => {
-    console.log({ roomId });
+const Users: React.FC<UsersProps> = ({ roomId, sse }) => {
+  const [users, setUsers] = useStateRef<User[]>([])
 
-    const intervalId = setInterval(() => {
-      fetch(`http://localhost:3001/users?roomId=${roomId}`)
-        .then<User[]>((res) => res.json())
-        .then((res) => {
-          setUsers(res)
-        })
-    }, 3000)
-    return () => {
-      setUsers([])
-      clearInterval(intervalId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const newData = useCallback((data: MessageEvent<string>) => {
+    const res: { type: 'INIT' | 'EDIT', data: User[] } = JSON.parse(data.data); 
+
+    if (res.type === 'INIT') {
+      setUsers(res.data)
+    } else if (res.type === 'EDIT') {
+      setUsers(res.data)
     }
   }, [roomId])
+
+  useEffect(() => {
+    sse.addEventListener('rooms/users', newData);
+    fetch(
+      `http://localhost:3001/rooms/users/get?roomId=${roomId}`,
+      {
+        headers: {
+          'User-Id': localStorage.getItem('userId')!
+        }
+      }
+    )
+      .then((res) => res.json())
+        
+    return () => {
+      setUsers([])
+      sse.removeEventListener('rooms/users', newData)
+    }
+  }, [roomId])
+
   return (
     <div style={{ border: '1px solid black', flex: 1, minHeight: '200px' }}>
       <h4>Users</h4>

@@ -6,12 +6,12 @@ import Chat from './Chat'
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
+  const [sseConn, setSseConn] = useState<EventSource | null>(null)
 
   useEffect(() => {
-    const localUser = localStorage.getItem('user')
+    const localUser = localStorage.getItem('userId')
     if (localUser != null) {
-      const foundLocalUser = JSON.parse(localUser) as Pick<User, 'id' | 'username'>
-      console.log({ foundLocalUser });
+      const foundLocalUserId = +localUser
 
       fetch(
         'http://localhost:3001/users',
@@ -20,10 +20,17 @@ function App() {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ id: foundLocalUser.id })
+          body: JSON.stringify({ id: foundLocalUserId })
         }
-      ).then((res) => res.json())
+      ).then<User>((res) => res.json())
         .then((res) => {
+
+          const sse = new EventSource(`http://localhost:3001/sse-register?userId=${res.id}`)
+          sse.onopen = () => {
+            console.log('SSE Opened');
+            
+          }
+          setSseConn(sse)
           setUser(res);
         })
         .catch((err) => {
@@ -32,18 +39,19 @@ function App() {
     }
   }, [])
 
-  if (user == null) {
+  if (user == null || sseConn == null) {
     return (
       <Login
-        onLogin={(user) => {
-          localStorage.setItem('user', JSON.stringify({ id: user.id }))
+        onLogin={(user, sse) => {
+          localStorage.setItem('userId', `${user.id}`)
           setUser(user)
+          setSseConn(sse)
         }} />
     )
   }
 
   return (
-    <Chat userId={user.id} />
+    <Chat userId={user.id} sse={sseConn} />
   )
 }
 

@@ -1,25 +1,49 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Room, User } from './types'
+import useStateRef from 'react-usestateref'
 
 interface RoomsProps {
   userId: User['id']
   selectedRoomId: Room['id'] | null
   onRoomSelect: (roomId: Room['id']) => void
+  sse: EventSource
 }
 
-const Rooms: React.FC<RoomsProps> = ({ userId, selectedRoomId, onRoomSelect }) => {
-  const [rooms, setRooms] = useState<Room[]>([])
+const Rooms: React.FC<RoomsProps> = ({ userId, selectedRoomId, onRoomSelect, sse }) => {
+  const [rooms, setRooms, roomsRef] = useStateRef<Omit<Room, 'userIds'>[]>([])
   const [newRoom, setNewRoom] = useState('')
 
-  useEffect(() => {
-    setInterval(() => {
-      fetch('http://localhost:3001/rooms')
-        .then<Room[]>((res) => res.json())
-        .then((res) => {
-          setRooms(res)
-        })
-    }, 3000)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const newData = useCallback((data: MessageEvent<string>) => {
+    console.log({ data });
+    const res: { type: 'INIT' | 'ADD', data: Room[] } = JSON.parse(data.data);
+    console.log({ res });
+
+    if (res.type === 'INIT') {
+      setRooms(res.data)
+    } else if (res.type === 'ADD') {
+      setRooms([...roomsRef.current, ...res.data])
+    }
   }, [])
+
+  useEffect(() => {
+    sse.addEventListener('rooms', newData)
+    fetch(
+      'http://localhost:3001/rooms/get',
+      {
+        headers: {
+          'User-Id': localStorage.getItem('userId')!
+        }
+      }
+    )
+      .then<{ success: boolean }>((res) => res.json())
+      .then((res) => {
+        if (!res.success) {
+          sse.removeEventListener('rooms', newData)
+        }
+      })
+  }, [])
+
   return (
     <div style={{ border: '1px solid black', flex: 1, minHeight: '200px' }}>
       <h4>Rooms</h4>
@@ -31,30 +55,32 @@ const Rooms: React.FC<RoomsProps> = ({ userId, selectedRoomId, onRoomSelect }) =
                 <span
                   onClick={() => {
                     Promise.all([
-                      fetch(
-                        'http://localhost:3001/rooms/join',
-                        {
-                          method: 'PATCH',
-                          headers: {
-                            'Content-Type': 'application/json'
-                          },
-                          body: JSON.stringify({ id: room.id, userId })
-                        }
-                      )
-                        .then((res) => res.json()),
                       selectedRoomId != null
                         ? fetch(
-                          'http://localhost:3001/rooms/leave',
+                          'http://localhost:3001/rooms/users/leave',
                           {
                             method: 'PATCH',
                             headers: {
-                              'Content-Type': 'application/json'
+                              'Content-Type': 'application/json',
+                              'User-Id': localStorage.getItem('userId')!
                             },
-                            body: JSON.stringify({ id: selectedRoomId, userId })
+                            body: JSON.stringify({ roomId: selectedRoomId })
                           }
                         )
                           .then((res) => res.json())
                         : Promise.resolve(),
+                      fetch(
+                        'http://localhost:3001/rooms/users/join',
+                        {
+                          method: 'PATCH',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'User-Id': localStorage.getItem('userId')!
+                          },
+                          body: JSON.stringify({ roomId: room.id })
+                        }
+                      )
+                        .then((res) => res.json()),
                     ])
                       .then(() => {
                         onRoomSelect(room.id)
@@ -84,13 +110,14 @@ const Rooms: React.FC<RoomsProps> = ({ userId, selectedRoomId, onRoomSelect }) =
         <button
           onClick={() => {
             fetch(
-              'http://localhost:3001/rooms',
+              'http://localhost:3001/rooms/new',
               {
                 method: 'POST',
                 headers: {
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  'User-Id': localStorage.getItem('userId')!
                 },
-                body: JSON.stringify({ userId, name: newRoom, roomId: 1 })
+                body: JSON.stringify({ userId, name: newRoom })
               }
             )
               .then<{ success: boolean }>((res) => res.json())
