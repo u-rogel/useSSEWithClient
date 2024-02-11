@@ -85,11 +85,35 @@ const createSSE = (req: Request<unknown, unknown, unknown, { userId: number }>, 
   sseConnectionId++;
   res.on('close', () => {
     console.log('client dropped me');
-    res.end();
-    const connectionIdx = sseConnections.findIndex((connection) => connection.id === connectionId);
-    sseConnections.splice(connectionIdx, 1);
+    destroySSE(connectionId)
+      .then(() => {
+        res.end();
+      });
   });
   return res;
+};
+
+const destroySSE = async (connectionId: number) => {
+  const connectionIdx = sseConnections.findIndex((connection) => connection.id === connectionId);
+  const [connectionToDestroy] = sseConnections.splice(connectionIdx, 1);
+  const subRoomToLeave = connectionToDestroy.subs.find((sub) => { return sub.event === 'rooms/users' && sub.path === 'init'; });
+
+  if (subRoomToLeave != null) {
+    const roomId = subRoomToLeave.id;
+    const draftRoom = await jsonServerFetch<Room>(`rooms/${roomId}`);
+    const userIdxInRoom = draftRoom.userIds.findIndex((usrId) => usrId === connectionToDestroy.userId);
+    const nextUserIds = [...draftRoom.userIds.slice(0, userIdxInRoom), ...draftRoom.userIds.slice(userIdxInRoom + 1)];
+    const { userIds, ...editedRoom } = await jsonServerFetch<Room>(
+      `rooms/${roomId}`,
+      'PATCH',
+      { userIds: nextUserIds },
+    );
+    const roomUsers = await getRoomUsers({ userIds, ...editedRoom });
+    publishRoomUsers({
+      sub: { event: 'rooms/users', path: 'leave', id: roomId },
+      message: { type: 'EDIT', data: roomUsers },
+    });
+  }
 };
 
 const addSub = <Event extends AllowedEvent>({ userId, sub }: { userId: number, sub: Sub<Event> }) => {
