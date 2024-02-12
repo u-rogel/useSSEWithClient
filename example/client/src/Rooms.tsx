@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Room, User } from './types'
 import useStateRef from 'react-usestateref'
+import { useSSE } from '../../../build/use-sse'
 
 interface RoomsProps {
   userId: User['id']
@@ -9,14 +10,14 @@ interface RoomsProps {
   sse: EventSource
 }
 
-const Rooms: React.FC<RoomsProps> = ({ userId, selectedRoomId, onRoomSelect, sse }) => {
+const Rooms: React.FC<RoomsProps> = ({ userId, selectedRoomId, onRoomSelect }) => {
   const [rooms, setRooms, roomsRef] = useStateRef<Omit<Room, 'userIds'>[]>([])
   const [newRoom, setNewRoom] = useState('')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const newData = useCallback((data: MessageEvent<string>) => {
+  const newData = useCallback((data: unknown) => {
     console.log({ data });
-    const res: { type: 'INIT' | 'ADD', data: Room[] } = JSON.parse(data.data);
+    const res: { type: 'INIT' | 'ADD', data: Room[] } = JSON.parse((data as MessageEvent<string>).data);
     console.log({ res });
 
     if (res.type === 'INIT') {
@@ -26,8 +27,10 @@ const Rooms: React.FC<RoomsProps> = ({ userId, selectedRoomId, onRoomSelect, sse
     }
   }, [])
 
+  const { connection } = useSSE("rooms", newData);
+  connection?.addEventListener('rooms', console.log)
   useEffect(() => {
-    sse.addEventListener('rooms', newData)
+    console.log('fetching');
     fetch(
       'http://localhost:3001/rooms/get',
       {
@@ -36,13 +39,24 @@ const Rooms: React.FC<RoomsProps> = ({ userId, selectedRoomId, onRoomSelect, sse
         }
       }
     )
-      .then<{ success: boolean }>((res) => res.json())
-      .then((res) => {
-        if (!res.success) {
-          sse.removeEventListener('rooms', newData)
-        }
-      })
-  }, [])
+  }, []);
+  // useEffect(() => {
+  //   sse.addEventListener('rooms', newData)
+  //   fetch(
+  //     'http://localhost:3001/rooms/get',
+  //     {
+  //       headers: {
+  //         'User-Id': localStorage.getItem('userId')!
+  //       }
+  //     }
+  //   )
+  //     .then<{ success: boolean }>((res) => res.json())
+  //     .then((res) => {
+  //       if (!res.success) {
+  //         sse.removeEventListener('rooms', newData)
+  //       }
+  //     })
+  // }, [])
 
   return (
     <div style={{ border: '1px solid black', flex: 1, minHeight: '200px' }}>

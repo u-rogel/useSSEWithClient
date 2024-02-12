@@ -3,8 +3,27 @@ import './App.css'
 import { User } from './types'
 import Login from './Login'
 import Chat from './Chat'
+import { SSEContextProvider } from 'use-sse'
+
 
 function App() {
+  // const { isConnected } = useSSE({
+  //   url: "http://localhost:3000/sse-register",
+  //   path: '/rooms/get',
+  //   event: {
+  //     message: (data: { num: number }) => {
+  //       console.log("🚀 ~ num:", data.num);
+  //     },
+  //   },
+  //   // withCredentials: true,
+  //   message: (data: { num: number }) => {
+  //     console.log("🚀 ~ num:", data.num);
+  //   },
+  //   ping: (counter: number) => {
+  //     console.log("🚀 ~ counter:", counter);
+  //   },
+  // });
+
   const [user, setUser] = useState<User | null>(null)
   const [sseConn, setSseConn] = useState<EventSource | null>(null)
 
@@ -28,7 +47,7 @@ function App() {
           const sse = new EventSource(`http://localhost:3001/sse-register?userId=${res.id}`)
           sse.onopen = () => {
             console.log('SSE Opened');
-            
+
           }
           setSseConn(sse)
           setUser(res);
@@ -51,7 +70,9 @@ function App() {
   }
 
   return (
-    <Chat userId={user.id} sse={sseConn} />
+    <SSEContextProvider url={`http://localhost:3001/sse-register?userId=${user.id}`}>
+      <Chat userId={user.id} sse={sseConn} />
+    </SSEContextProvider>
   )
 }
 
