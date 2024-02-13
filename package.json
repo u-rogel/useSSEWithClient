@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "exports": {
-    "types": "./build/use-sse.d.ts",
-    "import": "./build/use-sse.js",
-    "default": "./build/use-sse.js"
+    "types": "./build/index.d.ts",
+    "import": "./build/index.js",
+    "default": "./build/index.js"
   },
-  "files": ["./build"],
+  "files": [
+    "./build"
+  ],
   "scripts": {
     "build": "tsc -w --project ./tsconfig.json"
   },
