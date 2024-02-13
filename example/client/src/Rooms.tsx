@@ -17,7 +17,6 @@ const Rooms: React.FC<RoomsProps> = ({
   const [rooms, setRooms, roomsRef] = useStateRef<Omit<Room, "userIds">[]>([]);
   const [newRoom, setNewRoom] = useState("");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const newData = useCallback((res: { type: "INIT" | "ADD"; data: Room[] }) => {
     if (res.type === "INIT") {
       setRooms(res.data);
@@ -29,34 +28,13 @@ const Rooms: React.FC<RoomsProps> = ({
   useSSE("rooms", newData);
 
   useEffect(() => {
-    console.log("fetching");
     fetch("http://localhost:3001/rooms/get", {
       headers: {
         "User-Id": localStorage.getItem("userId")!,
       },
     })
       .then<{ success: boolean }>((res) => res.json())
-      .then((res) => {
-        console.log("🚀 ~ .then ~ res.success:", res.success);
-      });
   }, []);
-  // useEffect(() => {
-  //   sse.addEventListener('rooms', newData)
-  //   fetch(
-  //     'http://localhost:3001/rooms/get',
-  //     {
-  //       headers: {
-  //         'User-Id': localStorage.getItem('userId')!
-  //       }
-  //     }
-  //   )
-  //     .then<{ success: boolean }>((res) => res.json())
-  //     .then((res) => {
-  //       if (!res.success) {
-  //         sse.removeEventListener('rooms', newData)
-  //       }
-  //     })
-  // }, [])
 
   return (
     <div style={{ border: "1px solid black", flex: 1, minHeight: "200px" }}>
@@ -70,13 +48,13 @@ const Rooms: React.FC<RoomsProps> = ({
                   Promise.all([
                     selectedRoomId != null
                       ? fetch("http://localhost:3001/rooms/users/leave", {
-                          method: "PATCH",
-                          headers: {
-                            "Content-Type": "application/json",
-                            "User-Id": localStorage.getItem("userId")!,
-                          },
-                          body: JSON.stringify({ roomId: selectedRoomId }),
-                        }).then((res) => res.json())
+                        method: "PATCH",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "User-Id": localStorage.getItem("userId")!,
+                        },
+                        body: JSON.stringify({ roomId: selectedRoomId }),
+                      }).then((res) => res.json())
                       : Promise.resolve(),
                     fetch("http://localhost:3001/rooms/users/join", {
                       method: "PATCH",
@@ -122,7 +100,6 @@ const Rooms: React.FC<RoomsProps> = ({
                 if (res.success) {
                   setNewRoom("");
                 } else {
-                  console.log("room already exists");
                   setNewRoom("");
                 }
               });

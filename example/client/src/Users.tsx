@@ -10,7 +10,6 @@ interface UsersProps {
 const Users: React.FC<UsersProps> = ({ roomId }) => {
   const [users, setUsers] = useStateRef<User[]>([]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const newData = useCallback(
     (res: { type: "INIT" | "EDIT"; data: User[] }) => {
       if (res.type === "INIT") {

@@ -2,16 +2,14 @@
   "rooms": [
     {
       "id": 1,
-      "name": "default"
+      "name": "room1",
+      "userIds": []
     }
   ],
   "users": [
     {
       "id": 1,
-      "username": "default",
-      "roomIds": [
-        1
-      ]
+      "username": "user1"
     }
   ],
   "messages": [
