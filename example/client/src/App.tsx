@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
-import './App.css'
-import { User } from './types'
-import Login from './Login'
-import Chat from './Chat'
-import { SSEContextProvider } from 'use-sse'
-
+import { useEffect, useState } from "react";
+import "./App.css";
+import { User } from "./types";
+import Login from "./Login";
+import Chat from "./Chat";
+import { SSEContextProvider } from "use-sse";
 
 function App() {
   // const { isConnected } = useSSE({
@@ -24,56 +23,50 @@ function App() {
   //   },
   // });
 
-  const [user, setUser] = useState<User | null>(null)
-  const [sseConn, setSseConn] = useState<EventSource | null>(null)
+  const [user, setUser] = useState<User | null>(null);
+  const [sseConn, setSseConn] = useState<EventSource | null>(null);
 
   useEffect(() => {
-    const localUser = localStorage.getItem('userId')
+    const localUser = localStorage.getItem("userId");
     if (localUser != null) {
-      const foundLocalUserId = +localUser
+      const foundLocalUserId = +localUser;
 
-      fetch(
-        'http://localhost:3001/users',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ id: foundLocalUserId })
-        }
-      ).then<User>((res) => res.json())
+      fetch("http://localhost:3001/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: foundLocalUserId }),
+      })
+        .then<User>((res) => res.json())
         .then((res) => {
-
-          const sse = new EventSource(`http://localhost:3001/sse-register?userId=${res.id}`)
-          sse.onopen = () => {
-            console.log('SSE Opened');
-
-          }
-          setSseConn(sse)
           setUser(res);
         })
         .catch((err) => {
           console.log({ err });
-        })
+        });
     }
-  }, [])
+  }, []);
 
-  if (user == null || sseConn == null) {
+  if (user == null) {
     return (
       <Login
-        onLogin={(user, sse) => {
-          localStorage.setItem('userId', `${user.id}`)
-          setUser(user)
-          setSseConn(sse)
-        }} />
-    )
+        onLogin={(user) => {
+          localStorage.setItem("userId", `${user.id}`);
+          setUser(user);
+          // setSseConn(sse);
+        }}
+      />
+    );
   }
 
   return (
-    <SSEContextProvider url={`http://localhost:3001/sse-register?userId=${user.id}`}>
-      <Chat userId={user.id} sse={sseConn} />
+    <SSEContextProvider
+      url={`http://localhost:3001/sse-register?userId=${user.id}`}
+    >
+      <Chat userId={user.id} />
     </SSEContextProvider>
-  )
+  );
 }
 
-export default App
+export default App;

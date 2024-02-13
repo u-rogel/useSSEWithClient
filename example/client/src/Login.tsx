@@ -1,48 +1,46 @@
-import React, { useState } from 'react'
-import { User } from './types';
+import React, { useState } from "react";
+import { User } from "./types";
 
 interface LoginProps {
-  onLogin: (user: User, sse: EventSource) => void
+  onLogin: (user: User) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState("");
   return (
     <div>
       <h3>Login</h3>
       <div>
         <input
-          placeholder='username'
+          placeholder="username"
           value={username}
-          onChange={(e) => { setUsername(e.target.value) }}
+          onChange={(e) => {
+            setUsername(e.target.value);
+          }}
         />
         <button
           onClick={() => {
-            fetch(
-              'http://localhost:3001/users',
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username })
-              }
-            ).then<User>((res) => res.json())
+            fetch("http://localhost:3001/users", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ username }),
+            })
+              .then<User>((res) => res.json())
               .then((res) => {
-                const sse = new EventSource(`http://localhost:3001/sse-register?userId=${res.id}`)
-                sse.onopen = () => {
-                  console.log('SSE Opened');
-                }
-                onLogin(res, sse);
+                onLogin(res);
               })
               .catch((err) => {
                 console.log({ err });
-              })
+              });
           }}
-        >Login</button>
+        >
+          Login
+        </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

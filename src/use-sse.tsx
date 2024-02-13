@@ -1,57 +1,44 @@
-import React, { useContext, useEffect, useMemo, useState } from "react"
-
+import React, { useContext, useEffect, useMemo, useState } from "react";
 
 // https://developer.mozilla.org/en-US/docs/Web/API/EventSource/readyState
 // 0 — connecting
 // 1 — open
 // 2 — closed
 
-type Status = EventSource['CLOSED'] | EventSource['OPEN'] | EventSource['CONNECTING']
+type Status =
+  | EventSource["CLOSED"]
+  | EventSource["OPEN"]
+  | EventSource["CONNECTING"];
 
 type SSE = {
-  status: Status,
-  connection: null | EventSource
-}
+  status: Status;
+  connection: null | EventSource;
+};
 
 export const SSEContext = React.createContext<SSE>({
-  status: EventSource.CLOSED,
-  connection: null
-})
+  status: EventSource.CONNECTING,
+  connection: null,
+});
 
 type SSEContextProviderProps = React.PropsWithChildren<{
-  url: string
-  withCredentials?: boolean
-}>
+  url: string;
+  withCredentials?: boolean;
+}>;
 
 export const SSEContextProvider: React.FC<SSEContextProviderProps> = ({
   url,
   withCredentials = false,
-  children }) => {
-  const [status, setStatus] = useState<Status>(EventSource.CLOSED);
-  const [connection, setConnection] = useState<EventSource | null>(null);
+  children,
+}) => {
+  const [status, setStatus] = useState<Status>(EventSource.CONNECTING);
 
-  // const connection = useMemo(() => {
-  //   console.log(`useMemo: ${url}`);
-
-  //   return new EventSource(url, { withCredentials })
-  // }, [url, withCredentials]);
-
-  useEffect(() => {
-    const connectionDraft = new EventSource(url, { withCredentials })
-    connectionDraft.onopen = () => {
-      console.log("connected");
+  const connection = useMemo(() => {
+    const cnn = new EventSource(url, { withCredentials });
+    cnn.addEventListener("open", () => {
       setStatus(EventSource.OPEN);
-    };
-    setConnection(connectionDraft)
-
-    return function cleanup() {
-      console.log("SSEContextProvider -> cleanup");
-
-      // connection.onopen = null;
-      // connection.close();
-      setStatus(EventSource.CLOSED);
-    }
-  }, []);
+    });
+    return cnn;
+  }, [url, withCredentials]);
 
   return (
     <SSEContext.Provider
@@ -62,41 +49,39 @@ export const SSEContextProvider: React.FC<SSEContextProviderProps> = ({
     >
       {children}
     </SSEContext.Provider>
-  )
-}
+  );
+};
 
 export const useSSE = (type: string, callback: (data: unknown) => void) => {
   const { connection, status } = useContext(SSEContext);
 
   useEffect(() => {
     if (status !== EventSource.OPEN) {
-      return
+      return;
     }
-    console.log('listening');
+    console.log("listening");
 
     if (connection == null) {
-      return
+      return;
     }
 
     function listener(this: EventSource, event: MessageEvent<any>) {
-      console.log('event arrived');
+      console.log("event arrived");
 
       const data = JSON.parse(event.data);
       callback(data);
     }
     console.log(`event listened: ${type}`);
 
-    connection?.addEventListener(type, console.warn);
+    connection?.addEventListener(type, listener);
 
     return function cleanup() {
       console.log("useSSE -> cleanup");
 
-      // connection?.removeEventListener(type, listener);
-    }
+      connection?.removeEventListener(type, listener);
+    };
   }, [connection, status]);
-
-  return { connection }
-}
+};
 
 export const useSSEValue = (type: string) => {
   const [value, setValue] = useState<unknown>();
@@ -104,26 +89,7 @@ export const useSSEValue = (type: string) => {
   useSSE(type, (v) => setValue(v));
 
   return value;
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+};
 
 // import { useEffect, useState } from "react";
 
