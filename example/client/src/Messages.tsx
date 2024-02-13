@@ -14,11 +14,7 @@ const Messages: React.FC<MessagesProps> = ({ roomId }) => {
   const [newMessage, setNewMessage] = useState("");
 
   const newData = useCallback(
-    (data: unknown) => {
-      console.log({ data });
-      const res = data as { type: "INIT" | "ADD"; data: ChatMessage[] };
-      console.log({ res });
-
+    (res: { type: "INIT" | "ADD"; data: ChatMessage[] }) => {
       if (res.type === "INIT") {
         setMessages(res.data);
       } else if (res.type === "ADD") {

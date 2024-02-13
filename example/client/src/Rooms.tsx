@@ -18,11 +18,7 @@ const Rooms: React.FC<RoomsProps> = ({
   const [newRoom, setNewRoom] = useState("");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const newData = useCallback((data: unknown) => {
-    console.log({ data });
-    const res = data as { type: "INIT" | "ADD"; data: Room[] };
-    console.log({ res });
-
+  const newData = useCallback((res: { type: "INIT" | "ADD"; data: Room[] }) => {
     if (res.type === "INIT") {
       setRooms(res.data);
     } else if (res.type === "ADD") {

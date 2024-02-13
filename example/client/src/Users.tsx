@@ -12,9 +12,7 @@ const Users: React.FC<UsersProps> = ({ roomId }) => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const newData = useCallback(
-    (data: unknown) => {
-      const res = data as { type: "INIT" | "EDIT"; data: User[] };
-
+    (res: { type: "INIT" | "EDIT"; data: User[] }) => {
       if (res.type === "INIT") {
         setUsers(res.data);
       } else if (res.type === "EDIT") {
