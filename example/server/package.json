@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon",
-    "dev": "ts-node src/index"
+    "dev": "ts-node src/index",
+    "eslint": "eslint ."
   },
   "keywords": [],
   "author": "",
