@@ -24,14 +24,19 @@ const Messages: React.FC<MessagesProps> = ({ roomId }) => {
     [roomId]
   );
 
-  useSSE("rooms/messages", newData);
-  useEffect(() => {
-    fetch(`http://localhost:3001/rooms/messages/get?roomId=${roomId}`, {
-      headers: {
-        "User-Id": localStorage.getItem("userId")!,
-      },
-    }).then((res) => res.json());
+  useSSE(
+    "rooms/messages",
+    () => (
+      fetch(`http://localhost:3001/rooms/messages/get?roomId=${roomId}`, {
+        headers: {
+          "User-Id": localStorage.getItem("userId")!,
+        },
+      }).then((res) => res.json())
+    ),
+    newData,
+  );
 
+  useEffect(() => {
     return () => {
       setMessages([]);
     };

@@ -25,15 +25,23 @@ const Rooms: React.FC<RoomsProps> = ({
     }
   }, []);
 
-  useSSE("rooms", newData);
+  useSSE(
+    "rooms",
+    () => (
+      fetch("http://localhost:3001/rooms/get", {
+        headers: {
+          "User-Id": localStorage.getItem("userId")!,
+        },
+      })
+        .then<{ success: boolean }>((res) => res.json())
+    ),
+    newData,
+  );
 
   useEffect(() => {
-    fetch("http://localhost:3001/rooms/get", {
-      headers: {
-        "User-Id": localStorage.getItem("userId")!,
-      },
-    })
-      .then<{ success: boolean }>((res) => res.json())
+    return () => {
+      setRooms([])
+    }
   }, []);
 
   return (

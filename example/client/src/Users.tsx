@@ -21,15 +21,19 @@ const Users: React.FC<UsersProps> = ({ roomId }) => {
     [roomId]
   );
 
-  useSSE("rooms/users", newData);
+  useSSE(
+    "rooms/users",
+    () => (
+      fetch(`http://localhost:3001/rooms/users/get?roomId=${roomId}`, {
+        headers: {
+          "User-Id": localStorage.getItem("userId")!,
+        },
+      }).then((res) => res.json())
+    ),
+    newData,
+  );
 
   useEffect(() => {
-    fetch(`http://localhost:3001/rooms/users/get?roomId=${roomId}`, {
-      headers: {
-        "User-Id": localStorage.getItem("userId")!,
-      },
-    }).then((res) => res.json());
-
     return () => {
       setUsers([]);
     };
