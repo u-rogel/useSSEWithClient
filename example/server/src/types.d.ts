@@ -1,28 +1,27 @@
-export interface User {
+export interface UserType {
   id: number
   username: string
 }
 
-export interface Message {
+export interface MessageType {
   id: number
   message: string
   roomId: number
   userId: number
 }
 
-export interface Room {
+export interface RoomType {
   id: number
   name: string
   userIds: number[]
 }
 
-export type AllowedEvent = 'rooms' | 'rooms/users' | 'rooms/messages';
+export type AllowedEvent<Id extends number = number> = 'rooms' | `rooms/${Id}/users` | `rooms/${Id}/messages`;
 type AllowedRoomsPath = 'init' | 'new';
 type AllowedRoomsUsersPath = 'init' | 'join' | 'leave';
 type AllowedRoomsMessagesPath = 'init' | 'new';
 
-export interface Sub<Event extends AllowedEvent> {
-  id?: number
+export interface Sub<Event extends AllowedEvent<number>> {
   event: Event
-  path: Event extends 'rooms' ? AllowedRoomsPath : Event extends 'rooms/users' ? AllowedRoomsUsersPath : AllowedRoomsMessagesPath
+  path: Event extends 'rooms' ? AllowedRoomsPath : Event extends `rooms/${number}/users` ? AllowedRoomsUsersPath : AllowedRoomsMessagesPath
 }
