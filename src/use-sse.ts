@@ -1,15 +1,15 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
 import { SSEContext } from "./sse-context";
 
-export const useSSE = <T>(type: string, callback: (event: T) => void) => {
+export const useSSE = <T>(
+  type: string,
+  sub: () => void,
+  callback: (event: T) => void
+) => {
   const { connection, status } = useContext(SSEContext);
 
   useEffect(() => {
-    if (status !== EventSource.OPEN) {
-      return;
-    }
-
-    if (connection == null) {
+    if (status !== EventSource.OPEN || connection == null) {
       return;
     }
 
@@ -20,16 +20,18 @@ export const useSSE = <T>(type: string, callback: (event: T) => void) => {
 
     connection?.addEventListener(type, listener);
 
+    sub()
+
     return function cleanup() {
       connection?.removeEventListener(type, listener);
     };
-  }, [connection, status]);
+  }, [connection, status, type]);
 };
 
-export const useSSEValue = <T>(type: string) => {
-  const [value, setValue] = useState<T>();
+// export const useSSEValue = <T>(type: string) => {
+//   const [value, setValue] = useState<T>();
 
-  useSSE<T>(type, setValue);
+//   useSSE<T>(type, setValue);
 
-  return value;
-};
+//   return value;
+// };

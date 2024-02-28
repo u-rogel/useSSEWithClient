@@ -25,15 +25,23 @@ const Rooms: React.FC<RoomsProps> = ({
     }
   }, []);
 
-  useSSE("rooms", newData);
+  useSSE(
+    "rooms",
+    () => (
+      fetch("http://localhost:3001/rooms/stream", {
+        headers: {
+          "User-Id": localStorage.getItem("userId")!,
+        },
+      })
+        .then<{ success: boolean }>((res) => res.json())
+    ),
+    newData,
+  );
 
   useEffect(() => {
-    fetch("http://localhost:3001/rooms/get", {
-      headers: {
-        "User-Id": localStorage.getItem("userId")!,
-      },
-    })
-      .then<{ success: boolean }>((res) => res.json())
+    return () => {
+      setRooms([])
+    }
   }, []);
 
   return (
@@ -47,22 +55,18 @@ const Rooms: React.FC<RoomsProps> = ({
                 onClick={() => {
                   Promise.all([
                     selectedRoomId != null
-                      ? fetch("http://localhost:3001/rooms/users/leave", {
+                      ? fetch(`http://localhost:3001/rooms/${selectedRoomId}/users/leave`, {
                         method: "PATCH",
                         headers: {
-                          "Content-Type": "application/json",
                           "User-Id": localStorage.getItem("userId")!,
                         },
-                        body: JSON.stringify({ roomId: selectedRoomId }),
                       }).then((res) => res.json())
                       : Promise.resolve(),
-                    fetch("http://localhost:3001/rooms/users/join", {
+                    fetch(`http://localhost:3001/rooms/${room.id}/users/join`, {
                       method: "PATCH",
                       headers: {
-                        "Content-Type": "application/json",
                         "User-Id": localStorage.getItem("userId")!,
                       },
-                      body: JSON.stringify({ roomId: room.id }),
                     }).then((res) => res.json()),
                   ]).then(() => {
                     onRoomSelect(room.id);

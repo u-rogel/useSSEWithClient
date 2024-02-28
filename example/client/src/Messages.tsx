@@ -24,14 +24,19 @@ const Messages: React.FC<MessagesProps> = ({ roomId }) => {
     [roomId]
   );
 
-  useSSE("rooms/messages", newData);
-  useEffect(() => {
-    fetch(`http://localhost:3001/rooms/messages/get?roomId=${roomId}`, {
-      headers: {
-        "User-Id": localStorage.getItem("userId")!,
-      },
-    }).then((res) => res.json());
+  useSSE(
+    `rooms/${roomId}/messages`,
+    () => (
+      fetch(`http://localhost:3001/rooms/${roomId}/messages/stream`, {
+        headers: {
+          "User-Id": localStorage.getItem("userId")!,
+        },
+      }).then((res) => res.json())
+    ),
+    newData,
+  );
 
+  useEffect(() => {
     return () => {
       setMessages([]);
     };
@@ -62,13 +67,13 @@ const Messages: React.FC<MessagesProps> = ({ roomId }) => {
         />
         <button
           onClick={() => {
-            fetch("http://localhost:3001/rooms/messages/new", {
+            fetch(`http://localhost:3001/rooms/${roomId}/messages/new`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 "User-Id": localStorage.getItem("userId")!,
               },
-              body: JSON.stringify({ message: newMessage, roomId }),
+              body: JSON.stringify({ message: newMessage }),
             })
               .then<{ success: boolean }>((res) => res.json())
               .then((res) => {

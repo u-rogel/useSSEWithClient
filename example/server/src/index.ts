@@ -1,7 +1,7 @@
 import express, { type Response, type Request } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { type Sub, type Message, type Room, type User, type AllowedEvent } from 'types';
+import { type Sub, type MessageType, type RoomType, type UserType, type AllowedEvent } from 'types';
 const app = express();
 
 app.use(cors());
@@ -39,20 +39,20 @@ const jsonServerFetch = async <Res>(
     .then<Res>((r) => r.json());
 };
 
-app.post('/users', async (req: Request<unknown, unknown, Pick<Partial<User>, 'username' | 'id'>>, res) => {
+app.post('/users', async (req: Request<unknown, unknown, Pick<Partial<UserType>, 'username' | 'id'>>, res) => {
   const { username, id } = req.body;
 
-  let foundUser: User | null = null;
+  let foundUser: UserType | null = null;
   if (id != null) {
-    foundUser = await jsonServerFetch<User>(`users/${id}`);
+    foundUser = await jsonServerFetch<UserType>(`users/${id}`);
   }
   if (username != null) {
-    foundUser = await jsonServerFetch<User[]>(`users?username=${username}`).then((r) => r[0]);
+    foundUser = await jsonServerFetch<UserType[]>(`users?username=${username}`).then((r) => r[0]);
   }
   if (foundUser != null) {
     res.status(200).json(foundUser);
   } else {
-    const newUser = await jsonServerFetch<User>(
+    const newUser = await jsonServerFetch<UserType>(
       'users',
       'POST',
       { username },
@@ -62,19 +62,18 @@ app.post('/users', async (req: Request<unknown, unknown, Pick<Partial<User>, 'us
   }
 });
 
-const getRoomUsers = async (room: Room) => {
-  const users = await jsonServerFetch<User[]>('users');
+const getRoomUsers = async (room: RoomType) => {
+  const users = await jsonServerFetch<UserType[]>('users');
   return room.userIds.map((roomUserId) => users.find((user) => user.id === roomUserId)!);
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-redundant-type-constituents
-const sseConnections: Array<{ id: number, userId: User['id'], connection: Response, subs: Array<Sub<AllowedEvent>> }> = [];
+const sseConnections: Array<{ id: number, userId: UserType['id'], connection: Response, subs: Array<Sub<AllowedEvent>> }> = [];
 let sseConnectionId = 1;
 
 const createSSE = (req: Request<unknown, unknown, unknown, { userId: number }>, res: Response) => {
   const { userId: userIdStr } = req.query;
   const userId = +userIdStr;
-
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -96,21 +95,21 @@ const createSSE = (req: Request<unknown, unknown, unknown, { userId: number }>, 
 const destroySSE = async (connectionId: number) => {
   const connectionIdx = sseConnections.findIndex((connection) => connection.id === connectionId);
   const [connectionToDestroy] = sseConnections.splice(connectionIdx, 1);
-  const subRoomToLeave = connectionToDestroy.subs.find((sub) => { return sub.event === 'rooms/users' && sub.path === 'init'; });
+  const subRoomToLeave = connectionToDestroy.subs.find((sub) => { return /rooms\/\d+\/users/.test(sub.event) && sub.path === 'init'; });
 
   if (subRoomToLeave != null) {
-    const roomId = subRoomToLeave.id;
-    const draftRoom = await jsonServerFetch<Room>(`rooms/${roomId}`);
+    const roomId = +subRoomToLeave.event.replace('rooms/', '').replace('/users', '');
+    const draftRoom = await jsonServerFetch<RoomType>(`rooms/${roomId}`);
     const userIdxInRoom = draftRoom.userIds.findIndex((usrId) => usrId === connectionToDestroy.userId);
     const nextUserIds = [...draftRoom.userIds.slice(0, userIdxInRoom), ...draftRoom.userIds.slice(userIdxInRoom + 1)];
-    const { userIds, ...editedRoom } = await jsonServerFetch<Room>(
+    const { userIds, ...editedRoom } = await jsonServerFetch<RoomType>(
       `rooms/${roomId}`,
       'PATCH',
       { userIds: nextUserIds },
     );
     const roomUsers = await getRoomUsers({ userIds, ...editedRoom });
     publishRoomUsers({
-      sub: { event: 'rooms/users', path: 'leave', id: roomId },
+      sub: { event: `rooms/${roomId}/users`, path: 'leave' },
       message: { type: 'EDIT', data: roomUsers },
     });
   }
@@ -125,7 +124,7 @@ const addSub = <Event extends AllowedEvent>({ userId, sub }: { userId: number, s
 const dropSub = <Event extends AllowedEvent>({ userId, sub: subToDrop }: { userId: number, sub: Sub<Event> }) => {
   const sseConnIdx = sseConnections.findIndex((connection) => connection.userId === userId);
   const sseConn = sseConnections[sseConnIdx];
-  const dropIdx = sseConn.subs.findIndex((sub) => sub.event === subToDrop.event && sub.path === subToDrop.path && sub.id === subToDrop.id);
+  const dropIdx = sseConn.subs.findIndex((sub) => sub.event === subToDrop.event && sub.path === subToDrop.path);
   sseConn.subs.splice(dropIdx, 1);
 };
 
@@ -155,7 +154,7 @@ const broadcastEvent = <Event extends AllowedEvent>(
     sseConnections.forEach((sseConnection) => {
       if (
         sseConnection.subs.find((sub) => {
-          return sub.event === broadSub.event && sub.path === broadSub.path && sub.id === broadSub.id;
+          return sub.event === broadSub.event && sub.path === broadSub.path;
         }) != null
       ) {
         sseConnection.connection.write(`event: ${event}\n`);
@@ -174,7 +173,7 @@ const publishRooms = (
     userId?: number
     sub: Sub<'rooms'>
     message: {
-      data: Room[]
+      data: RoomType[]
       type: 'INIT' | 'ADD'
     }
   },
@@ -189,14 +188,14 @@ const publishRoomUsers = (
     sub,
   }: {
     userId?: number
-    sub: Sub<'rooms/users'>
+    sub: Sub<`rooms/${number}/users`>
     message: {
-      data: User[]
+      data: UserType[]
       type: 'INIT' | 'ADD' | 'EDIT' | 'DELETE'
     }
   },
 ) => {
-  broadcastEvent({ event: 'rooms/users', message, userId, sub });
+  broadcastEvent({ event: sub.event, message, userId, sub });
 };
 
 const publishRoomMessages = (
@@ -206,24 +205,23 @@ const publishRoomMessages = (
     sub,
   }: {
     userId?: number
-    sub: Sub<'rooms/messages'>
+    sub: Sub<`rooms/${number}/messages`>
     message: {
-      data: Array<Message & Pick<User, 'username'>>
+      data: Array<MessageType & Pick<UserType, 'username'>>
       type: 'INIT' | 'ADD'
     }
   },
 ) => {
-  broadcastEvent({ event: 'rooms/messages', message, userId, sub });
+  broadcastEvent({ event: sub.event, message, userId, sub });
 };
 
 app.get('/sse-register', (req: Request<unknown, unknown, unknown, { userId: number }>, res) => {
   createSSE(req, res);
 });
 
-app.get('/rooms/get', async (req, res) => {
+app.get('/rooms/stream', async (req, res) => {
   const userId = +req.header('User-Id')!;
-
-  const draftRooms = await jsonServerFetch<Room[]>('rooms');
+  const draftRooms = await jsonServerFetch<RoomType[]>('rooms');
   addSub({ userId, sub: { event: 'rooms', path: 'init' } });
   addSub({ userId, sub: { event: 'rooms', path: 'new' } });
   publishRooms({
@@ -235,14 +233,14 @@ app.get('/rooms/get', async (req, res) => {
   res.status(200).json({ success: true });
 });
 
-app.post('/rooms/new', async (req: Request<unknown, unknown, Pick<Room, 'name'>>, res) => {
+app.post('/rooms/new', async (req: Request<unknown, unknown, Pick<RoomType, 'name'>>, res) => {
   const { name } = req.body;
-  const rooms = await jsonServerFetch<Room[]>('rooms');
+  const rooms = await jsonServerFetch<RoomType[]>('rooms');
   const foundRoom = rooms.find((room) => room.name === name);
   if (foundRoom != null) {
     res.status(200).json({ success: false });
   } else {
-    const newRoom = await jsonServerFetch<Room>(
+    const newRoom = await jsonServerFetch<RoomType>(
       'rooms',
       'POST',
       { name, userIds: [] },
@@ -256,19 +254,19 @@ app.post('/rooms/new', async (req: Request<unknown, unknown, Pick<Room, 'name'>>
   }
 });
 
-app.get('/rooms/users/get', async (req: Request<unknown, unknown, unknown, { roomId: string }>, res) => {
+app.get('/rooms/:roomId/users/stream', async (req: Request<{ roomId: string }>, res) => {
   const userId = +req.header('User-Id')!;
-  const { roomId: roomIdStr } = req.query;
+  const { roomId: roomIdStr } = req.params;
   const roomId = +roomIdStr;
-  const room = await jsonServerFetch<Room>(`rooms/${roomId}`);
+  const room = await jsonServerFetch<RoomType>(`rooms/${roomId}`);
 
-  addSub({ userId, sub: { event: 'rooms/users', path: 'init', id: roomId } });
-  addSub({ userId, sub: { event: 'rooms/users', path: 'join', id: roomId } });
-  addSub({ userId, sub: { event: 'rooms/users', path: 'leave', id: roomId } });
+  addSub({ userId, sub: { event: `rooms/${roomId}/users`, path: 'init' } });
+  addSub({ userId, sub: { event: `rooms/${roomId}/users`, path: 'join' } });
+  addSub({ userId, sub: { event: `rooms/${roomId}/users`, path: 'leave' } });
   const users = await getRoomUsers(room);
   publishRoomUsers({
     userId,
-    sub: { event: 'rooms/users', path: 'init', id: roomId },
+    sub: { event: `rooms/${roomId}/users`, path: 'init' },
     message: {
       type: 'INIT',
       data: users,
@@ -277,13 +275,13 @@ app.get('/rooms/users/get', async (req: Request<unknown, unknown, unknown, { roo
   res.status(200).json({ success: true });
 });
 
-app.patch('/rooms/users/join', async (req: Request<unknown, unknown, { roomId: Room['id'] }>, res) => {
+app.patch('/rooms/:roomId/users/join', async (req: Request<{ roomId: string }>, res) => {
   const userId = +req.header('User-Id')!;
-  const { roomId } = req.body;
-  console.log(`user: ${userId}, joins: ${roomId}`, { userId, roomId });
+  const { roomId: roomIdStr } = req.params;
+  const roomId = +roomIdStr;
 
-  const draftRoom = await jsonServerFetch<Room>(`rooms/${roomId}`);
-  const editedRoom = await jsonServerFetch<Room>(
+  const draftRoom = await jsonServerFetch<RoomType>(`rooms/${roomId}`);
+  const editedRoom = await jsonServerFetch<RoomType>(
     `rooms/${roomId}`,
     'PATCH',
     { userIds: [...draftRoom.userIds, userId] },
@@ -291,27 +289,27 @@ app.patch('/rooms/users/join', async (req: Request<unknown, unknown, { roomId: R
 
   const roomUsers = await getRoomUsers(editedRoom);
   publishRoomUsers({
-    sub: { event: 'rooms/users', path: 'join', id: roomId },
+    sub: { event: `rooms/${roomId}/users`, path: 'join' },
     message: { type: 'EDIT', data: roomUsers },
   });
   res.status(200).json({ success: true });
 });
 
-app.patch('/rooms/users/leave', async (req: Request<unknown, unknown, { roomId: Room['id'] }>, res) => {
+app.patch('/rooms/:roomId/users/leave', async (req: Request<{ roomId: string }>, res) => {
   const userId = +req.header('User-Id')!;
-  const { roomId } = req.body;
-  console.log(`user: ${userId}, leaves: ${roomId}`, { userId, roomId });
+  const { roomId: roomIdStr } = req.params;
+  const roomId = +roomIdStr;
 
-  const draftRoom = await jsonServerFetch<Room>(`rooms/${roomId}`);
+  const draftRoom = await jsonServerFetch<RoomType>(`rooms/${roomId}`);
   const userIdxInRoom = draftRoom.userIds.findIndex((usrId) => usrId === userId);
   const nextUserIds = [...draftRoom.userIds.slice(0, userIdxInRoom), ...draftRoom.userIds.slice(userIdxInRoom + 1)];
-  dropSub({ userId, sub: { event: 'rooms/users', path: 'init', id: roomId } });
-  dropSub({ userId, sub: { event: 'rooms/users', path: 'join', id: roomId } });
-  dropSub({ userId, sub: { event: 'rooms/users', path: 'leave', id: roomId } });
-  dropSub({ userId, sub: { event: 'rooms/messages', path: 'new', id: roomId } });
-  dropSub({ userId, sub: { event: 'rooms/messages', path: 'init', id: roomId } });
+  dropSub({ userId, sub: { event: `rooms/${roomId}/users`, path: 'init' } });
+  dropSub({ userId, sub: { event: `rooms/${roomId}/users`, path: 'join' } });
+  dropSub({ userId, sub: { event: `rooms/${roomId}/users`, path: 'leave' } });
+  dropSub({ userId, sub: { event: `rooms/${roomId}/messages`, path: 'new' } });
+  dropSub({ userId, sub: { event: `rooms/${roomId}/messages`, path: 'init' } });
 
-  const { userIds, ...editedRoom } = await jsonServerFetch<Room>(
+  const { userIds, ...editedRoom } = await jsonServerFetch<RoomType>(
     `rooms/${roomId}`,
     'PATCH',
     { userIds: nextUserIds },
@@ -319,24 +317,24 @@ app.patch('/rooms/users/leave', async (req: Request<unknown, unknown, { roomId: 
 
   const roomUsers = await getRoomUsers({ userIds, ...editedRoom });
   publishRoomUsers({
-    sub: { event: 'rooms/users', path: 'leave', id: roomId },
+    sub: { event: `rooms/${roomId}/users`, path: 'leave' },
     message: { type: 'EDIT', data: roomUsers },
   });
   res.status(200).json({ success: true });
 });
 
-app.get('/rooms/messages/get', async (req: Request<unknown, unknown, unknown, { roomId: string }>, res) => {
+app.get('/rooms/:roomId/messages/stream', async (req: Request<{ roomId: string }>, res) => {
   const userId = +req.header('User-Id')!;
-  const { roomId: roomIdStr } = req.query;
+  const { roomId: roomIdStr } = req.params;
   const roomId = +roomIdStr;
-  const messages = await jsonServerFetch<Message[]>(`messages?roomId=${roomId}`);
-  const users = await jsonServerFetch<User[]>('users');
+  const messages = await jsonServerFetch<MessageType[]>(`messages?roomId=${roomId}`);
+  const users = await jsonServerFetch<UserType[]>('users');
 
-  addSub({ userId, sub: { event: 'rooms/messages', path: 'init', id: roomId } });
-  addSub({ userId, sub: { event: 'rooms/messages', path: 'new', id: roomId } });
+  addSub({ userId, sub: { event: `rooms/${roomId}/messages`, path: 'init' } });
+  addSub({ userId, sub: { event: `rooms/${roomId}/messages`, path: 'new' } });
   publishRoomMessages({
     userId,
-    sub: { event: 'rooms/messages', path: 'init', id: roomId },
+    sub: { event: `rooms/${roomId}/messages`, path: 'init' },
     message: {
       type: 'INIT',
       data: messages.map((message) => {
@@ -349,19 +347,20 @@ app.get('/rooms/messages/get', async (req: Request<unknown, unknown, unknown, { 
   res.status(200).json({ success: true });
 });
 
-app.post('/rooms/messages/new', async (req: Request<unknown, unknown, Pick<Message, 'roomId' | 'message'>>, res) => {
+app.post('/rooms/:roomId/messages/new', async (req: Request<{ roomId: string }, unknown, Pick<MessageType, 'message'>>, res) => {
   const userId = +req.header('User-Id')!;
-  const { roomId, message } = req.body;
-
-  const newMessage = await jsonServerFetch<Message>(
+  const { message } = req.body;
+  const { roomId: roomIdStr } = req.params;
+  const roomId = +roomIdStr;
+  const newMessage = await jsonServerFetch<MessageType>(
     'messages',
     'POST',
     { message, roomId, userId },
   );
-  const user = await jsonServerFetch<User>(`users/${userId}`);
+  const user = await jsonServerFetch<UserType>(`users/${userId}`);
 
   publishRoomMessages({
-    sub: { event: 'rooms/messages', path: 'new', id: roomId },
+    sub: { event: `rooms/${roomId}/messages`, path: 'new' },
     message: { type: 'ADD', data: [{ ...newMessage, username: user.username }] },
   });
 
