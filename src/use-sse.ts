@@ -1,7 +1,11 @@
 import { useContext, useEffect, useState } from "react";
 import { SSEContext } from "./sse-context";
 
-export const useSSE = <T>(type: string, callback: (event: T) => void) => {
+export const useSSE = <T>(
+  type: string,
+  // sub: () => void,
+  callback: (event: T) => void
+) => {
   const { connection, status } = useContext(SSEContext);
 
   useEffect(() => {
@@ -19,6 +23,8 @@ export const useSSE = <T>(type: string, callback: (event: T) => void) => {
     }
 
     connection?.addEventListener(type, listener);
+
+    // sub()
 
     return function cleanup() {
       connection?.removeEventListener(type, listener);

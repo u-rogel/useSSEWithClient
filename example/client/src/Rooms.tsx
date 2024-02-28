@@ -25,7 +25,46 @@ const Rooms: React.FC<RoomsProps> = ({
     }
   }, []);
 
-  useSSE("rooms", newData);
+  useSSE(
+    "rooms",
+    newData,
+  );
+
+
+  useEffect(() => {
+    fetch("http://localhost:3001/rooms/stream", {
+      headers: {
+        "User-Id": localStorage.getItem("userId")!,
+      },
+    })
+      .then<{ success: boolean }>((res) => res.json())
+  }, [])
+
+  // useSSE({
+  //   subFunc: () => (
+  //     fetch("http://localhost:3001/rooms/stream", {
+  //       headers: {
+  //         "User-Id": localStorage.getItem("userId")!,
+  //       },
+  //     })
+  //       .then<{ success: boolean }>((res) => res.json())
+  //   ),
+  //   eventListeners: {
+  //     `rooms/${roomId}/init`: (data) => {
+  //       setRooms(data)
+  //     },
+  //     `rooms/${roomId}/add`: (data) => {
+  //       setRooms([...roomsRef.current, ...data])
+  //     }
+  //     `rooms/${roomId}/delete`: (data) => {
+  //       setRooms([...roomsRef.current, ...data])
+  //     }
+  //     `rooms/${roomId}/edit`: (data) => {
+  //       setRooms([...roomsRef.current, ...data])
+  //     }
+  //   }
+  //   // newData,
+  // });
 
   useEffect(() => {
     fetch("http://localhost:3001/rooms/get", {
