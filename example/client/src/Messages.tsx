@@ -25,9 +25,9 @@ const Messages: React.FC<MessagesProps> = ({ roomId }) => {
   );
 
   useSSE(
-    "rooms/messages",
+    `rooms/${roomId}/messages`,
     () => (
-      fetch(`http://localhost:3001/rooms/messages/get?roomId=${roomId}`, {
+      fetch(`http://localhost:3001/rooms/${roomId}/messages/stream`, {
         headers: {
           "User-Id": localStorage.getItem("userId")!,
         },
@@ -67,13 +67,13 @@ const Messages: React.FC<MessagesProps> = ({ roomId }) => {
         />
         <button
           onClick={() => {
-            fetch("http://localhost:3001/rooms/messages/new", {
+            fetch(`http://localhost:3001/rooms/${roomId}/messages/new`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 "User-Id": localStorage.getItem("userId")!,
               },
-              body: JSON.stringify({ message: newMessage, roomId }),
+              body: JSON.stringify({ message: newMessage }),
             })
               .then<{ success: boolean }>((res) => res.json())
               .then((res) => {

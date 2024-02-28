@@ -22,9 +22,9 @@ const Users: React.FC<UsersProps> = ({ roomId }) => {
   );
 
   useSSE(
-    "rooms/users",
+    `rooms/${roomId}/users`,
     () => (
-      fetch(`http://localhost:3001/rooms/users/get?roomId=${roomId}`, {
+      fetch(`http://localhost:3001/rooms/${roomId}/users/stream`, {
         headers: {
           "User-Id": localStorage.getItem("userId")!,
         },

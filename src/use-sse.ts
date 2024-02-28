@@ -25,7 +25,7 @@ export const useSSE = <T>(
     return function cleanup() {
       connection?.removeEventListener(type, listener);
     };
-  }, [connection, status]);
+  }, [connection, status, type]);
 };
 
 // export const useSSEValue = <T>(type: string) => {
